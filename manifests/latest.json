@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "license": "CC-BY-4.0",
+  "code_license": "MIT",
+  "sources": [
+    "hyperliquid",
+    "lighter",
+    "polygon_uma"
+  ],
+  "release_tag": "v1.0.0-2026-11-23",
+  "published_at_utc": "2026-11-23T22:01:46Z",
+  "snapshot_generated_at_utc": "2026-11-23T21:58:59Z",
+  "repository": "https://github.com/vondra/venuediff-pit",
+  "compression": "zstd",
+  "total_bytes": 3739911,
+  "tables": {
+    "instruments": {
+      "filename": "instruments.parquet",
+      "rows": 858,
+      "columns": 36,
+      "bytes": 30156,
+      "sha256": "4b09d5d0b8ffcc0db3ef9fc9b6d01eb73c6735bf4ffc9b3933a16e4561e58432",
+      "description": "Bitemporal SCD Type 2 specifications for Hyperliquid L1 (Core + HIP-3) and Lighter L2 (live PIT + delisted /candles activity windows)",
+      "download_url": "https://github.com/vondra/venuediff-pit/releases/download/v1.0.0-2026-11-23/instruments.parquet"
+    },
+    "margin_tiers": {
+      "filename": "margin_tiers.parquet",
+      "rows": 543,
+      "columns": 12,
+      "bytes": 14148,
+      "sha256": "d2a41fb2f9aca72131d6851a259d4f521d08e5d6e7a4e510d85115d13de98941",
+      "description": "Atomic versioned margin/leverage ladders for Hyperliquid (usd_notional & unbounded) and Lighter (unbounded IMR/MMR/closeout)",
+      "download_url": "https://github.com/vondra/venuediff-pit/releases/download/v1.0.0-2026-11-23/margin_tiers.parquet"
+    },
+    "collateral_rules": {
+      "filename": "collateral_rules.parquet",
+      "rows": 13,
+      "columns": 14,
+      "bytes": 6544,
+      "sha256": "9762db706e239f9eb14a250388041c2a50fd944cddc0266f39a23bf9dde70bba",
+      "description": "Atomic versioned margin collateral haircuts, LTV ratios, liquidation thresholds & supply caps (Lighter L2 assetDetails)",
+      "download_url": "https://github.com/vondra/venuediff-pit/releases/download/v1.0.0-2026-11-23/collateral_rules.parquet"
+    },
+    "events": {
+      "filename": "events.parquet",
+      "rows": 28643,
+      "columns": 25,
+      "bytes": 3682517,
+      "sha256": "afed71fcafb9ffe42d9cb8bfa7052374a04f46c7195d7faae7b24b1c67cb0d7b",
+      "description": "Unified bitemporal on-chain event log (2-min live PIT diffs, Hyperliquid HIP-3 perpDeploy governance, Lighter delisted /candles bounds, Polygon UMA OOV2/ManagedOOV2 dispute lifecycles)",
+      "download_url": "https://github.com/vondra/venuediff-pit/releases/download/v1.0.0-2026-11-23/events.parquet"
+    },
+    "coverage": {
+      "filename": "coverage.parquet",
+      "rows": 79,
+      "columns": 12,
+      "bytes": 6546,
+      "sha256": "52de48877065f27143aef6c8be92156f4a65158e1d6ed646f088a7562bc2b8c4",
+      "description": "Per-source, per-endpoint collector SLA, missed-slot blind gaps, and on-chain backfill truncation bounds",
+      "download_url": "https://github.com/vondra/venuediff-pit/releases/download/v1.0.0-2026-11-23/coverage.parquet"
+    }
+  }
+}
