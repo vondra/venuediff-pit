@@ -1,39 +1,56 @@
-# venuediff-pit
+# venuediff-pit (VenueDiff Open PIT v1.0)
 
-Point-in-time, bitemporal **Apache Parquet (ZSTD)** dataset of trading rules, margin ladders, collateral haircuts, funding regimes, and prediction-market settlement rules across 8 venues:
+Point-in-time, bitemporal **Apache Parquet (ZSTD)** dataset of trading rules, margin ladders, collateral haircuts, on-chain governance actions, and optimistic oracle dispute lifecycles across **3 permissionless on-chain sources**:
 
-- **Perpetuals & Futures (6):** Binance USD-M, Bybit Linear/Inverse, OKX Swap/Futures, Deribit Futures/Perpetuals, Hyperliquid (native + HIP-3 DEXes), Lighter.
-- **Prediction Markets (2):** Kalshi (CFTC-regulated series & markets), Polymarket (Gamma markets, CLOB Liquidity Rewards, Polygon UMA OOV2 / ManagedOOV2 disputes).
+- **Hyperliquid L1 (`hyperliquid`):** Complete **Core + HIP-3 builder DEX** coverage (`perpDexs`, `allPerpMetas`, `spotMeta` collateral token resolution, `marginTables`, `growthMode`, `deployerFeeScale`, `onlyIsolated`) plus decoded on-chain `perpDeploy` governance transactions via `rpc.hyperliquid.xyz/explorer`.
+- **Lighter L2 (`lighter`):** Complete perpetual and spot market specifications (`orderBookDetails`), margin collateral LTV/haircut rules (`assetDetails`), immutable `market_id` split incarnations, `force_reduce_only` restrictions, static USD open-interest caps, and historical trading activity windows (`observed_activity_bound`) for delisted markets from nonzero-volume `/api/v1/candles`.
+- **Polygon UMA (`polygon_uma`):** Pure on-chain Polygon **Optimistic Oracle V2** (`polygon-optimistic-oracle-v2`) and **ManagedOOV2** (`polygon-managed-optimistic-oracle-v2`) dispute lifecycles (`uma_requested` → `uma_proposed` → `uma_disputed` → `uma_settled`) read directly from Polygon smart contracts via public Goldsky subgraphs since July 2022.
 
-All Parquet files are published as immutable **GitHub Release** assets referenced by SHA-256 and exact row counts in [`manifests/latest.json`](manifests/latest.json). Git history holds only lightweight text documentation, SQL views, schemas, and manifests (`< 1 MiB` permanently).
+All Parquet files are published as immutable **GitHub Release** assets referenced by SHA-256 and exact row counts in [`manifests/latest.json`](manifests/latest.json) and `SHA256SUMS.txt`. Git history stores only lightweight text documentation, SQL views, schemas, and manifests (`< 1 MiB` permanently).
 
 ---
 
 ## Why This Dataset Exists
 
-Exchange microstructure backtests and risk engines silently break when current rules are projected backward:
+On-chain microstructure backtests, liquidation simulators, and risk engines silently break when current protocol parameters are projected backward:
 
-- **Funding intervals drift:** As of `2026-11-22`, **57.7%** of active Binance USD-M perpetuals (`469 / 813`), **46.3%** of Bybit (`416 / 899`), and **39.6%** of OKX (`216 / 546`) are no longer on 8-hour funding (`28800s`).
-- **Margin ladders are not interchangeable:** OKX brackets are denominated in **contracts** (`exposure_unit = 'contracts'`), Binance/Bybit/multi-tier Hyperliquid in **USD notional** (`'usd_notional'`), and Lighter / flat Hyperliquid in **unbounded** flat fractions (`'unbounded'`).
-- **Tickers recycle across corporate actions & delistings:** On Lighter, pre-split `SNDK_DELISTED` (`lighter:perp:139`) and post-split `SNDK` (`lighter:perp:11649`) are distinct `subject_id` incarnations.
-- **Survivorship bias:** Live exchange endpoints erase purged contracts. Enumerating Binance's public S3 `fundingRate/` archive independently of `exchangeInfo` recovers 71 purged USDT-M perpetuals back to `2020-01-01`; `history.deribit.com` recovers 2,746 expired Deribit futures/perpetuals back to `2016-07-13`.
-- **Collector outages & API caps must be machine-readable:** Every missed polling slot and API retention limit is recorded in [`coverage.parquet`](schema/v1/SCHEMA.md#6-coverageparquet) so downstream queries can explicitly flag blind intervals instead of assuming continuous observation.
+- **HIP-3 builder DEX parameters mutate on-chain:** Hyperliquid's permissionless HIP-3 deployer markets (`xyz`, `para`, `io`, `mkts`) dynamically toggle `growthMode` (−90% fee mode, active on `162 / 175` live HIP-3 markets), adjust `deployerFeeScale`, update `marginTables`, set open-interest caps, and change funding clamps via on-chain `perpDeploy` governance transactions. Most perpetual reference aggregators omit HIP-3 entirely.
+- **Margin ladders use incompatible exposure units:** Multi-tier Hyperliquid `marginTables` are denominated in **USD notional** (`exposure_unit = 'usd_notional'`), whereas flat Hyperliquid leverage and Lighter flat IMR/MMR/closeout fractions are **unbounded** (`exposure_unit = 'unbounded'`). Keeping `exposure_unit` explicit prevents silent unit-mixing bugs.
+- **Tickers recycle across splits and delistings:** On Lighter L2, pre-split `SNDK_DELISTED` (`lighter:perp:139`) and post-split `SNDK` (`lighter:perp:11649`) are distinct immutable `subject_id` incarnations. Historical trading bounds for 30 delisted Lighter markets are recovered from nonzero-volume daily candles (stripping post-delisting zero-volume filler candles).
+- **Optimistic oracle disputes unfold over days:** Polygon UMA OOV2 and ManagedOOV2 subgraph rows overwrite state in place. VenueDiff splits each of `6,259` disputed requests into strictly chronological point-in-time transitions so settlement outcomes never leak backward into request-time or dispute-time backtests.
+- **Collector outages & explorer caps are machine-readable:** Every missed polling slot and explorer truncation bound (such as Hyperliquid's 300-tx/address explorer window) is recorded in [`coverage.parquet`](schema/v1/SCHEMA.md#5-coverageparquet).
 
 ---
 
-## v1.0 Dataset Layout (6 Core Tables + 1 Optional Rewards Table)
+## Why These Sources (Legal & Data Provenance)
 
-Snapshot `v1.0.0-2026-11-22` (total **15.78 MiB** ZSTD across 7 Parquet files):
+Centralized exchange and proprietary prediction-market APIs commonly impose contractual Terms of Service prohibiting redistribution, repackaging, or commercial use of market data and instrument specifications. **VenueDiff Open PIT v1.0** deliberately restricts ingestion exclusively to permissionless blockchain state and public on-chain/L2 endpoints whose published terms permit public and commercial redistribution.
+
+Every `.parquet` file embeds verifiable Arrow schema metadata:
+
+```text
+venuediff_license        = CC-BY-4.0
+venuediff_schema_version = v1.0
+venuediff_sources        = hyperliquid,lighter,polygon_uma
+```
+
+### Roadmap
+- Additional permissionless on-chain perpetual protocols after primary Terms verification.
+- Public regulatory product/rule filings (e.g., CFTC Rule 40.2 / 40.6 filings directly from public government portals once programmatically accessible without anti-bot gates).
+
+---
+
+## v1.0 Dataset Layout (5 Normalized Tables)
+
+Release `v1.0.0-2026-11-23` (total **3.57 MiB** ZSTD across 5 Parquet files):
 
 | Table | Rows | Cols | Size (ZSTD) | Observed Span | Summary |
 |---|---:|---:|---:|---|---|
-| `instruments.parquet` | 6,311 | 36 | 133.9 KiB | `2016-07-13` .. `2026-11-22` | Bitemporal SCD Type 2 specs across 6 perp/futures venues (`3,494` live PIT + `2,746` Deribit expired `terminal_snapshot` + `71` Binance S3 purged `observed_activity_bound`). |
-| `margin_tiers.parquet` | 2,984 | 12 | 323.7 KiB | `2026-11-22` | Atomic versioned margin ladders (`82,971` typed tier structs) with explicit `exposure_unit` (`usd_notional` / `contracts` / `unbounded`). |
-| `collateral_rules.parquet` | 570 | 14 | 72.1 KiB | `2026-11-22` | Atomic versioned collateral haircuts, LTV ratios, liquidation thresholds, and tiered discount bands. |
-| `prediction_rules.parquet` | 307,559 | 36 | 10.0 MiB | `2021-06-30` .. `2026-11-22` | Kalshi series (`16,775`), active markets (`1,344`), and historical markets (`287,797`, `terminal_snapshot`); Polymarket Gamma markets (`1,643`) with ordered 256-bit ERC-1155 `clob_token_id` outcomes and true `feeSchedule`. |
-| `events.parquet` | 38,078 | 25 | 4.73 MiB | `2020-10-31` .. `2026-11-22` | Unified bitemporal rule-change log: clean 2-min live PIT diffs (`653` rows, zero rewards noise) + 8-venue verified historical events (`37,425` rows). |
-| `coverage.parquet` | 132 | 12 | 7.7 KiB | `2026-11-22` | Per-venue, per-endpoint live SLA (`ok` / `missed_slot` / `truncated`) and historical backfill truncation bounds. |
-| `prediction_rewards.parquet` | 7,908 | 12 | 547.4 KiB | `2026-11-22` | Optional append-only Polymarket CLOB Liquidity Rewards stream (`1` row per pool/asset/sample), completely separated from `events.parquet`. |
+| `instruments.parquet` | 858 | 36 | 29.4 KiB | `2025-02-15` .. `2026-11-23` | Bitemporal SCD Type 2 specs for Hyperliquid L1 Core + HIP-3 (`570` live PIT) and Lighter L2 Perps/Spot (`258` live PIT + `30` delisted `/candles` `observed_activity_bound`). |
+| `margin_tiers.parquet` | 543 | 12 | 13.8 KiB | `2026-11-23` | Atomic versioned margin ladders (`579` typed tier structs) with explicit `exposure_unit` (`usd_notional` / `unbounded`). |
+| `collateral_rules.parquet` | 13 | 14 | 6.4 KiB | `2026-11-23` | Atomic versioned margin collateral LTV ratios, haircuts, liquidation thresholds, and global supply caps (Lighter L2 `assetDetails`). |
+| `events.parquet` | 28,643 | 25 | 3.51 MiB | `2022-07-12` .. `2026-11-23` | Unified bitemporal on-chain event log: `24,967` Polygon UMA OOV2/ManagedOOV2 dispute transitions (`6,259` disputes), `3,646` Hyperliquid HIP-3 `perpDeploy` governance transitions, `30` Lighter delisted `/candles` bounds, plus live 2-min PIT diffs. |
+| `coverage.parquet` | 79 | 12 | 6.4 KiB | `2026-11-23` | Per-source, per-endpoint live SLA (`ok` / `missed_slot` / `error`) and historical backfill truncation bounds. |
 
 Full column-level contract and invariants: [`schema/v1/SCHEMA.md`](schema/v1/SCHEMA.md).
 
@@ -46,22 +63,20 @@ pip install duckdb pyarrow
 python3 examples/quickstart.py --manifest manifests/latest.json
 ```
 
-`examples/quickstart.py` downloads all 7 Parquet files from the immutable release referenced in `manifests/latest.json`, verifies every SHA-256 digest before reading, and runs 7 sanity queries.
+`examples/quickstart.py` downloads all 5 Parquet files from the immutable release referenced in `manifests/latest.json`, verifies every SHA-256 digest and embedded `CC-BY-4.0` Arrow metadata header before reading, and runs 6 sanity queries.
 
 ### Direct DuckDB Examples
 
 #### 1. Zero Look-Ahead Point-in-Time As-Of State
 
-Filter `known_from_utc <= decision_ts` **before** `valid_from_utc <= venue_ts`, exclude `terminal_snapshot` unless opting in, and left-join `coverage.parquet` blind gaps. Ready-to-run query: [`sql/v1/as_of_state.sql`](sql/v1/as_of_state.sql).
+Filter `known_from_utc <= decision_ts` **before** `valid_from_utc <= venue_ts`, exclude `observed_activity_bound` unless opting in, and left-join `coverage.parquet` blind gaps. Ready-to-run query: [`sql/v1/as_of_state.sql`](sql/v1/as_of_state.sql).
 
 ```sql
-SET VARIABLE decision_ts = TIMESTAMPTZ '2026-11-22T14:00:00Z';
-SET VARIABLE venue_ts    = TIMESTAMPTZ '2026-11-22T14:00:00Z';
-
--- Run sql/v1/as_of_state.sql against local files or GitHub Release URLs
+SET VARIABLE decision_ts = TIMESTAMPTZ '2026-11-24T00:00:00Z';
+SET VARIABLE venue_ts    = TIMESTAMPTZ '2026-11-24T00:00:00Z';
 ```
 
-#### 2. Flatten Typed Margin Ladders Without Mixing Units
+#### 2. Flatten Typed Margin Ladders Without Mixing Exposure Units
 
 Ready-to-run view: [`sql/v1/margin_tiers_flat.sql`](sql/v1/margin_tiers_flat.sql).
 
@@ -74,32 +89,21 @@ GROUP BY 1, 2
 ORDER BY 1, 2;
 ```
 
-Observed output on `v1.0.0-2026-11-22`:
+Observed output on `v1.0.0-2026-11-23`:
 
 ```text
-binance       usd_notional      956 ladders  ( 7,585 tiers)
-bybit         usd_notional      939 ladders  (27,372 tiers)
-hyperliquid   unbounded         254 ladders  (   254 tiers)
-hyperliquid   usd_notional       43 ladders  (    79 tiers)
-lighter       unbounded         246 ladders  (   246 tiers)
-okx           contracts         546 ladders  (47,435 tiers)
+hyperliquid   unbounded         254 ladders  (  254 tiers)
+hyperliquid   usd_notional       43 ladders  (   79 tiers)
+lighter       unbounded         246 ladders  (  246 tiers)
 ```
 
-#### 3. Join Polymarket Orderbook Fills via Exact 256-bit ERC-1155 `clob_token_id`
+#### 3. Inspect Lighter L2 Margin Collateral Haircuts & LTVs
 
-```sql
-SELECT p.condition_id, p.gamma_market_id,
-       o.outcome.outcome_index, o.outcome.label, o.outcome.clob_token_id,
-       p.fee_type, p.fee_rate, p.fee_exponent
-FROM read_parquet('prediction_rules.parquet') p,
-     UNNEST(p.outcomes) AS o(outcome)
-WHERE p.venue = 'polymarket'
-LIMIT 5;
-```
+Ready-to-run view: [`sql/v1/collateral_haircuts_flat.sql`](sql/v1/collateral_haircuts_flat.sql).
 
-#### 4. Polymarket Time-Weighted Daily Liquidity Rewards
+#### 4. Analyze Polygon UMA OOV2 / ManagedOOV2 Dispute-to-Settlement Lifecycles
 
-Ready-to-run view: [`sql/v1/rewards_twap.sql`](sql/v1/rewards_twap.sql) (caps individual sample spans at `3,600s` so collector outages never extrapolate stale reward budgets).
+Ready-to-run view: [`sql/v1/uma_disputes_timeline.sql`](sql/v1/uma_disputes_timeline.sql).
 
 ---
 
@@ -108,14 +112,11 @@ Ready-to-run view: [`sql/v1/rewards_twap.sql`](sql/v1/rewards_twap.sql) (caps in
 All truncation limits below are also machine-readable in `coverage.parquet`:
 
 1. **Bitemporal `claim_kind` semantics:**
-   - `terminal_snapshot` rows (2,746 expired Deribit contracts, 287,797 Kalshi `/historical/markets` contracts, 138 Binance `SETTLING` records) represent final contract metadata returned at archive query time, **not** guaranteed mid-life parameters. Filter `claim_kind IN ('live_observation', 'effective_event')` for strict zero-look-ahead backtests.
-   - `regulatory_filing_index` rows (Kalshi S3: 658 CFTC Rule 40.6 notices + 5,249 Rule 40.2 product certifications) index official PDF URLs, S3 `LastModified` (stored in `observed_at_utc`), ETag, and filename dates; `LastModified` is not conflated with legal effective date and PDFs are not bulk-parsed.
-   - `announcement_notice` rows (Binance 879, Bybit 781, OKX 202) carry notice publication timestamps in `announced_at_utc` and link to raw official notices; HTML rule tables inside notices are not parsed into numeric diffs in v1.0.
-2. **Hyperliquid HIP-3 explorer 300-tx cap:** `rpc.hyperliquid.xyz/explorer` caps `userDetails` at 300 transactions per address. Across 51 HIP-3 deployer/sub-deployer endpoints queried, 30 hit this cap (`outcome = 'truncated'` in `coverage.parquet`), meaning older historical prefixes before the 300-tx window are incomplete for those high-activity addresses. Going forward, the live collector polls the explorer continuously so new `perpDeploy` governance actions are captured before rolling off. Price `setOracle` updates and reverted transactions are excluded.
-3. **OKX funding-rate history retention:** OKX's public REST `/api/v5/public/funding-rate-history` retains ~95 days (`92` observed switches; `outcome = 'truncated'`).
-4. **Polymarket UMA dispute linking:** All `24,768` UMA transitions (deduplicated across Polygon OOV2 and ManagedOOV2 since July 2022) are linked to markets **strictly deterministically** (`29` `resolved` to current live Gamma markets; `24,739` explicitly `unresolved`). Fuzzy title matching is never used.
-5. **Live collector blind gaps:** Live Point-in-Time collection runs every 2 minutes (heavy layer every 30 minutes). Any gap exceeding the cadence threshold is emitted as `outcome = 'missed_slot'` in `coverage.parquet` (including one 826-second stall on `2026-11-22 12:02:02Z .. 12:15:48Z` prior to state storage tuning).
-6. **Windowed live prediction scans:** Kalshi active market polling scans up to 12,000 non-MVE markets while covering 100% of series; Polymarket Gamma polling scans top-volume + recently updated markets while covering 100% of active CLOB Liquidity Rewards pools.
+   - `observed_activity_bound` rows (`30` Lighter delisted markets recovered via `/api/v1/candles` where daily volume `v > 0`) bound the first and last observed active trading day — **not** exact listing/delisting seconds or mid-life fee changes. Filter `claim_kind IN ('live_observation', 'effective_event')` for strict zero-look-ahead backtests.
+   - `7` inactive Lighter markets returned zero traded candles (pre-launch or never traded) and are transparently noted in `coverage.parquet` without fabricated dates.
+2. **Hyperliquid HIP-3 explorer 300-tx cap:** `rpc.hyperliquid.xyz/explorer` caps `userDetails` at 300 transactions per address. Addresses hitting this cap carry `outcome = 'truncated'` in `coverage.parquet`, meaning older historical prefixes before the 300-tx window are incomplete for high-activity deployers. Going forward, the live collector polls the explorer continuously every 30 minutes so new `perpDeploy` governance actions are captured before rolling off. Price `setOracle` ticks and reverted transactions are excluded.
+3. **Polygon UMA protocol-level scope:** All `6,259` disputed Polygon UMA requests (`24,967` chronological lifecycle transitions across OOV2 and ManagedOOV2 since `2022-07-12`) are read directly from Polygon smart contracts via Goldsky subgraphs. Raw `ancillaryData` is hashed (`ancillary_sha256`) rather than copying arbitrary third-party free-text prose into titles.
+4. **Live collector cadence & blind gaps:** Live Point-in-Time collection runs every 2 minutes (heavy explorer/subgraph watchers every 30 minutes). Any gap exceeding the cadence threshold is emitted per source as `outcome = 'missed_slot'` in `coverage.parquet`.
 
 ---
 
@@ -124,26 +125,29 @@ All truncation limits below are also machine-readable in `coverage.parquet`:
 ```text
 .
 ├── README.md
-├── LICENSE                       # CC0-1.0 (dataset & schemas) / MIT (SQL & examples)
+├── LICENSE                            # CC-BY-4.0 (dataset *.parquet) / MIT (code, schemas, SQL, manifests)
 ├── CHANGELOG.md
 ├── manifests/
-│   └── latest.json               # Pinned release tag, URLs, row counts, SHA-256 digests
+│   └── latest.json                    # Pinned release tag, URLs, license, row counts, SHA-256 digests
 ├── schema/
 │   └── v1/
-│       └── SCHEMA.md             # Frozen v1.0 table & column specification
+│       └── SCHEMA.md                  # Frozen v1.0 5-table specification
 ├── sql/
 │   └── v1/
-│       ├── as_of_state.sql       # Zero-look-ahead bitemporal as-of state + blind-gap join
-│       ├── margin_tiers_flat.sql # UNNEST margin ladders preserving exposure_unit
-│       └── rewards_twap.sql      # Time-weighted daily Polymarket liquidity rewards
+│       ├── as_of_state.sql            # Zero-look-ahead bitemporal as-of state + blind-gap join
+│       ├── margin_tiers_flat.sql      # UNNEST margin ladders preserving exposure_unit
+│       ├── collateral_haircuts_flat.sql # UNNEST Lighter L2 collateral LTV & haircuts
+│       └── uma_disputes_timeline.sql  # Polygon UMA OOV2/ManagedOOV2 dispute-to-settlement lifecycle view
 └── examples/
-    └── quickstart.py             # SHA-256 verified DuckDB + PyArrow quickstart
+    └── quickstart.py                  # SHA-256 & Arrow metadata verified DuckDB + PyArrow quickstart
 ```
 
 ## Release Cadence
 
-Immutable daily snapshots are published to GitHub Releases (`data-YYYY-MM-DD`, with `v1.0.0-2026-11-22` as the initial frozen v1.0 baseline) and indexed in `manifests/latest.json`.
+Immutable daily snapshots are published to GitHub Releases (`data-YYYY-MM-DD`, with `v1.0.0-2026-11-23` as the initial frozen On-Chain Open PIT v1.0 release) and indexed in `manifests/latest.json` alongside `SHA256SUMS.txt`.
 
 ## License
 
-See [`LICENSE`](LICENSE): dataset tables and schemas are dedicated under **CC0-1.0**; SQL views and example scripts are licensed under **MIT**.
+See [`LICENSE`](LICENSE):
+- **Dataset files (`*.parquet` GitHub Release assets):** **CC-BY-4.0** (Creative Commons Attribution 4.0 International — free for public and commercial use with attribution).
+- **Schemas, SQL views, manifests, documentation, and example scripts (`schema/`, `sql/`, `examples/`, `manifests/`, `*.md`, `*.py`, `*.sql`):** **MIT License**.

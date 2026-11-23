@@ -1,15 +1,15 @@
--- VenueDiff v1.0 — Bitemporal Point-in-Time As-Of State Query (Zero Look-Ahead)
+-- VenueDiff Open PIT v1.0 — Bitemporal Point-in-Time As-Of State Query (Zero Look-Ahead)
 --
 -- Usage in DuckDB (2.x):
---   SET VARIABLE decision_ts = TIMESTAMPTZ '2026-11-22T14:00:00Z';
---   SET VARIABLE venue_ts    = TIMESTAMPTZ '2026-11-22T14:00:00Z';
---   -- Replace paths with local files or immutable GitHub Release URLs from manifests/latest.json.
+--   SET VARIABLE decision_ts = TIMESTAMPTZ '2026-11-23T23:59:59Z';
+--   SET VARIABLE venue_ts    = TIMESTAMPTZ '2026-11-23T23:59:59Z';
+--   -- Replace file paths with local files or immutable GitHub Release URLs from manifests/latest.json.
 --
 -- Semantics:
---   1. Filters by knowledge cutoff (`known_from_utc <= decision_ts`) BEFORE resolving venue validity
+--   1. Filters by knowledge cutoff (`known_from_utc <= decision_ts`) BEFORE resolving protocol validity
 --      (`valid_from_utc <= venue_ts < valid_to_utc`) so late corrections never leak into past decisions.
---   2. Excludes `claim_kind = 'terminal_snapshot'` and `'observed_activity_bound'` from exact-effective
---      state by default (a 2026 terminal contract record is never silently applied to a 2022 trade).
+--   2. Excludes `claim_kind = 'observed_activity_bound'` and `'terminal_snapshot'` from exact-effective
+--      state by default unless the caller explicitly opts in.
 --   3. Left-joins `coverage.parquet` missed-slot/error blind gaps so callers see explicitly whether the
 --      collector was blind at `venue_ts`.
 
@@ -48,6 +48,7 @@ SELECT
     v.symbol,
     v.canonical_base,
     v.asset_class,
+    v.contract_type,
     v.payoff_model,
     v.contract_size,
     v.contract_size_unit,
@@ -73,6 +74,6 @@ SELECT
     g.truncation_note AS blind_gap_note
 FROM visible_instruments v
 LEFT JOIN active_blind_gaps g
-  ON g.venue IN (v.venue, 'all')
+  ON g.venue = v.venue
 WHERE v.rn = 1
 ORDER BY v.venue, v.symbol;

@@ -1,5 +1,5 @@
-Dual License for venuediff-pit
-==============================
+Dual License for venuediff-pit (VenueDiff Open PIT v1.0)
+========================================================
 
 This repository uses two licenses depending on the file type:
 
@@ -10,8 +10,8 @@ This repository uses two licenses depending on the file type:
 1. DATA LICENSE — Creative Commons Attribution 4.0 International (CC-BY-4.0)
 -------------------------------------------------------------------------------
 
-The Parquet dataset files distributed via GitHub Releases are licensed under
-the Creative Commons Attribution 4.0 International License (CC BY 4.0).
+The Apache Parquet dataset files distributed via GitHub Releases are licensed
+under the Creative Commons Attribution 4.0 International License (CC BY 4.0).
 
 You are free to:
   - Share — copy and redistribute the material in any medium or format for any
@@ -28,11 +28,13 @@ Under the following terms:
 
 Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
 
-DISCLAIMER: The datasets are compiled from publicly accessible exchange APIs,
-on-chain explorers/subgraphs, and public notices on a best-effort basis and are
-provided "AS IS", without warranty of any kind, express or implied. Verify
-critical trading parameters against primary exchange endpoints before live
-execution.
+PROVENANCE & DISCLAIMER: All dataset records are compiled strictly from
+permissionless blockchain state and public on-chain / L2 endpoints (Hyperliquid
+L1 Core + HIP-3 & explorer, Lighter L2 public API, and Polygon UMA OOV2 /
+ManagedOOV2 public Goldsky subgraphs) on a best-effort basis and are provided
+"AS IS", without warranty of any kind, express or implied. Verify critical
+trading parameters directly on-chain or against primary protocol endpoints
+before live execution.
 
 -------------------------------------------------------------------------------
 2. CODE LICENSE — MIT License

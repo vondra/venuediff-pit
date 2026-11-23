@@ -1,9 +1,8 @@
--- VenueDiff v1.0 — Flattened Margin Tiers View (`UNNEST` over atomic `LIST<STRUCT>`)
+-- VenueDiff Open PIT v1.0 — Flattened Margin Tiers View (`UNNEST` over atomic `LIST<STRUCT>`)
 --
 -- Flattens `margin_tiers.parquet` into 1 row per tier bracket while preserving
--- `exposure_unit` (`usd_notional` | `contracts` | `base_qty` | `unbounded`) so
--- contract-count ladders (OKX), USD-notional ladders (Binance/Bybit/Hyperliquid),
--- and flat unbounded margin fractions (Lighter) are never silently mixed.
+-- `exposure_unit` (`usd_notional` for multi-tier Hyperliquid marginTables vs
+-- `unbounded` for Lighter flat margin fractions and flat Hyperliquid leverage).
 
 SELECT
     m.subject_id,
